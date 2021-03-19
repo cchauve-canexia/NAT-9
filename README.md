@@ -38,6 +38,6 @@ the extracted reads and mappings.
 
 ```
 mkdir data results
-./tools/sratoolkit.2.11.0-ubuntu64/bin/sam-dump SRR11850665 | samtools view -bS - > ./data/SRR11850665.bam
+sam-dump SRR11850665 | samtools view -bS - > ./data/SRR11850665.bam
 ./bin/filter_bam.py data/SRR11850665.bam assets/CG001v5.1_Amplicon_Manifest_Panel5.1.14_20201119.tsv results
 ```
