@@ -33,3 +33,11 @@ defined by the primary mapping of the read.
 
 A log file in output_directory named   `BAM_FILE.log` records statistics about
 the extracted reads and mappings.
+
+### Example
+
+```
+mkdir data results
+./tools/sratoolkit.2.11.0-ubuntu64/bin/sam-dump SRR11850665 | samtools view -bS - > ./data/SRR11850665.bam
+./bin/filter_bam.py data/SRR11850665.bam assets/CG001v5.1_Amplicon_Manifest_Panel5.1.14_20201119.tsv results
+```
