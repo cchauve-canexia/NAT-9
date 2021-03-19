@@ -146,7 +146,9 @@ if __name__ == "__main__":
     # Sorting and indexing the input BAM file if not already done
     if not os.path.isfile(sorted_bam_file):
         print('Sorting input BAM file')
-        pysam.sort('-o', sorted_bam_file, args.bam_file)
+        subprocess.call(
+            ['samtools', 'sort', '-o', sorted_bam_file, args.bam_file]
+        )
     if not os.path.isfile(index_sorted_bam_file):
         print('Indexing sorted input BAM file')
         subprocess.call(['samtools', 'index', sorted_bam_file])

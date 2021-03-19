@@ -5,7 +5,7 @@ This task is done by the script `bin/filter_bam.py`.
 
 Usage:
 ```
-filter_bam.py input_bam_file input_tsv_manifest_file output_directory \
+./bin/filter_bam.py input_bam_file input_tsv_manifest_file output_directory \
   -q/--ext_qual <int, default=41>
 ```
 
