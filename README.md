@@ -6,7 +6,8 @@ This task is done by the script `bin/filter_bam.py`.
 Usage:
 ```
 ./bin/filter_bam.py input_bam_file input_tsv_manifest_file output_directory \
-  -q/--ext_qual <int, default=41>
+  -q/--ext_qual <int, default=41> \
+  -c/--chr_prefix <str, default=''>
 ```
 
 Assume `input_bam_file` is `XXX/BAM_FILE.bam`
@@ -26,6 +27,9 @@ suffix in order to cover the full amplicon and the Phred quality of the
 extensions is set to `ext_qual`. If `ext_qual` takes value 0, the read is not
 extended.
 
+Argument chr_prefix is the expected prefix of chromosome names in the input BAM
+file and is replacing 'chr' in amplicon chromosome location.
+
 In the FASTQ files, the reads header follows the format of annotated FASTQ files
 with an added information field OVERLAP that contains the coordinates (in 0-base
 amplicon coordinates) of the overlap between the read and the amplicon as
@@ -38,6 +42,8 @@ the extracted reads and mappings.
 
 ```
 mkdir data results
+sam-dump SRR8618981 | samtools view -bS - > ./data/SRR8618981.bam
+./bin/filter_bam.py data/SRR8618981.bam assets/CG001v5.1_Amplicon_Manifest_Panel5.1.14_20201119.tsv results
 sam-dump SRR11850665 | samtools view -bS - > ./data/SRR11850665.bam
-./bin/filter_bam.py data/SRR11850665.bam assets/CG001v5.1_Amplicon_Manifest_Panel5.1.14_20201119.tsv results
+./bin/filter_bam.py data/SRR11850665.bam assets/CG001v5.1_Amplicon_Manifest_Panel5.1.14_20201119.tsv results -c chr
 ```

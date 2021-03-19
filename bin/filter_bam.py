@@ -5,7 +5,8 @@ Extracting from a BAM file data (mappings and reads) overlaping the amplicons of
 a given manifest.
 
 usage: filter_bam.py input_bam_file input_tsv_manifest_file output_directory \
-  -q/--ext_qual <int, default=41>
+  -q/--ext_qual <int, default=41> \
+  -c/--chr_prefix <str, default=''>
 
 Assume input_bam_file = .../BAM_FILE.bam
 
@@ -22,6 +23,9 @@ There are then two options; if the argument ext_qual > 0 then if the mapping
 partially overlaps the amplicon, it is completed by a prefix and a suffix in
 order to cover the full amplicon and the Phred qyuality of the extensions is
 set to ext_qual. If ext_qual==0, the read is not extended.
+
+Argument chr_prefix is the expected prefix of chromosome names in the input BAM
+file and is replacing 'chr' in amplicon chromosome location.
 
 In the FASTQ files, the reads header follows the format of annotated FASTQ files
 with an added information field OVERLAP that contains the coordinates (in 0-base
@@ -132,6 +136,9 @@ if __name__ == "__main__":
         '-q', '--ext_qual', type=int, default=EXT_QUAL,
         help='Phred quality extension (0=no extension)'
     )
+    parser.add_argument('-c', '--chr_prefix', type=str, default='',
+        help='Prefix expected in from chromosome names'
+    )
     args = parser.parse_args()
 
     # Reading the amplicon manifest
@@ -196,7 +203,7 @@ if __name__ == "__main__":
         log_nb_rev_bases = 0 # Number of bases from reverse reads overlaping
         # Amplicon features
         amp_id = amplicon['Amplicon_ID']
-        amp_chr = amplicon['Chr']
+        amp_chr = amplicon['Chr'].replace('chr', args.chr_prefix)
         amp_start, amp_end = int(amplicon['Start']), int(amplicon['End'])
         amp_seq = amplicon['Amplicon']
         amp_read_count = pysam_in_bam_file.count(
