@@ -68,10 +68,7 @@ def rev_comp(seq):
     return ''.join(map(lambda x: REVERSE_COMPLEMENT[x], seq))[::-1]
 
 def trim_extend_read(
-    ref_start, ref_end,
-    read_seq, read_qual,
-    amp_seq, amp_start, amp_end,
-    ext_qual=EXT_QUAL
+    ref_start, ref_end, read_seq, read_qual, amp_seq, amp_start, amp_end, ext_qual=EXT_QUAL
 ):
     """
     Given a mapping of a read over an amplicon, trim or extend the mapping to
@@ -86,11 +83,11 @@ def trim_extend_read(
     In case of prefix or suffix extension, the quality of added
     bases is set to ext_qual
     :param: ref_start (int): position in the amplicon (in chromosomal
-    coordinates of the first aligned base of the read)
+    coordinates of the first aligned base of the read, 0-base)
     :param: ref_end (int): same for the last aligned base
     :param: read_seq (str): sequence of the read that is aligned
     :param: amp_seq (str): amplicon sequence
-    :param: amp_start, amp_end (int): chromosomal coordinates of the amplicon
+    :param: amp_start, amp_end (int): chromosomal coordinates of the amplicon (0-base)
     :param: ext_qual (int): if >0 extend in case the read does not cover the
     whole amplicon and assigns ext_qual as Phred quality to the extensions
     :return: (str, list(int), int, int):
@@ -98,32 +95,39 @@ def trim_extend_read(
     - trimmed/extended Phred quality (list of numerical values)
     - start, end of the aligned part of the read in 0-base amplicon coordinates
     """
+    # Extracting the start coordinates of the mapped segment that overlaps the amplicon
     if ref_start < amp_start:
-        prefix_start = amp_start - ref_start
-        seq1, qual1 = read_seq[prefix_start:], read_qual[prefix_start:]
-        start = 0
-    elif ext_qual > 0:
-        prefix_seq = amp_seq[0:ref_start - amp_start]
-        prefix_qual = [ext_qual for i in range(len(prefix_seq))]
-        seq1, qual1 = f"{prefix_seq}{read_seq}", prefix_qual + read_qual
-        start = ref_start - amp_start
+        read_segment_start = amp_start - ref_start # Start of mapping segment that will be kept
+        prefix_extension_len = 0 # Length of prefix extension
     else:
-        seq1, qual1 = read_seq, read_qual
-        start = ref_start - amp_start
-    # Trimming/extending the suffix of the alignment
+        read_segment_start = 0
+        prefix_extension_len = amp_start - ref_start
+    amp_segment_start = prefix_extension_len # Start coord. of kept segment on amplicon
+    # Extracting the end coordinate of the mapped segment that overlaps the amplicon
     if ref_end > amp_end:
-        seq, qual = seq1[:-(ref_end - amp_end)], qual1[:-(ref_end - amp_end)]
-        end = amp_end - amp_start
-    elif ext_qual > 0:
-        suffix_seq = amp_seq[ref_end - amp_start + 1:]
-        suffix_qual = [ext_qual for i in range(len(suffix_seq))]
-        seq, qual = f"{seq1}{suffix_seq}", qual1 + suffix_qual
-        end = ref_end - amp_start
+        read_segment_end = amp_end - ref_start
+        suffix_extension_len = 0
     else:
-        seq, qual = seq1, qual1
-        end = ref_end - amp_start
-    return (seq, qual, start, end)
-
+        read_segment_end = ref_end - ref_start
+        suffix_extension_len = amp_end - ref_end
+    amp_segment_end = amp_end - amp_start - suffix_extension_len
+    # Trimming/extending the mapped segment
+    read_segment_seq = read_seq[read_segment_start:read_segment_end + 1]
+    read_segment_qual = read_qual[read_segment_start:read_segment_end + 1]
+    if ext_qual > 0:
+        read_segment_seq_prefix = amp_seq[0:prefix_extension_len]
+        read_segment_qual_prefix = [ext_qual for i in range(prefix_extension_len)]
+        if suffix_extension_len > 0:
+            read_segment_seq_suffix = amp_seq[-suffix_extension_len:]
+        else:
+            read_segment_seq_suffix = ''
+        read_segment_qual_suffix = [ext_qual for i in range(suffix_extension_len)]
+    return (
+        f"{read_segment_seq_prefix}{read_segment_seq}{read_segment_seq_suffix}",
+        read_segment_qual_prefix + read_segment_qual + read_segment_qual_suffix,
+        amp_segment_start,
+        amp_segment_end
+    )
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -204,16 +208,23 @@ if __name__ == "__main__":
         # Amplicon features
         amp_id = amplicon['Amplicon_ID']
         amp_chr = amplicon['Chr'].replace('chr', args.chr_prefix)
-        amp_start, amp_end = int(amplicon['Start']), int(amplicon['End'])
         amp_seq = amplicon['Amplicon']
-        amp_read_count = pysam_in_bam_file.count(
-            contig=amp_chr, start=amp_start, stop=amp_end
+        # Amplicon coordinates (0-base)
+        amp_start, amp_end = amplicon.get_start() - 1, amplicon.get_end() - 1
+        amp_seq = amplicon.get_seq()
+        # Counting the number of mappings overlaping the amplicon on at least one base
+        # stop receives +1 as in pysam regions specified by contig, start, stop are
+        # 0-base half-open intervals as in python slices
+        # https://pysam.readthedocs.io/en/latest/api.html#pysam.HTSFile.parse_region
+        amp_read_count = pysam_raw_bam_file.count(
+            contig=amp_chr, start=amp_start, stop=amp_end + 1
         )
         if amp_read_count > 0:
             log_file.write(f"STAT:NB_READS\t{amp_id}:{amp_read_count}\n")
         # Loop over all mappings overlaping the current amplicon
-        for read in pysam_in_bam_file.fetch(
-            contig=amp_chr, start=amp_start, stop=amp_end
+        # See comment above for increasing amp_end by 1
+        for read in pysam_raw_bam_file.fetch(
+            contig=amp_chr, start=amp_start, stop=amp_end + 1
         ):
             # Mapping features
             read_name = read.query_name
@@ -231,16 +242,25 @@ if __name__ == "__main__":
                 out_bam_reads_written[idx] = True
                 pysam_out_bam_file.write(read)
             # Exporting primary mappings into FASTQ files
-            if not read.is_secondary:
+            if (not read.is_secondary) and (read.reference_end is not None):
                 # Mapping features
                 query_seq = read.query_alignment_sequence
                 query_qual = list(read.query_alignment_qualities)
                 # Computing the overlap of the mapping with the amplicon,
                 # trimming it if needed and extensing it if args.ext_qual > 0
+                # Computing the overlap of the mapping with the amplicon,
+                # trimming it if needed and extensing it if args.ext_qual > 0
+                # ref_end decreased as pysam outputs alignment end coordinate
+                # 1 base after the last aligned base
                 (seq, qual, start, end) = trim_extend_read(
-                    ref_start, ref_end, query_seq, query_qual,
-                    amp_seq, amp_start, amp_end,
-                    ext_qual=args.ext_qual
+                    ref_start,
+                    ref_end - 1,
+                    query_seq,
+                    query_qual,
+                    amp_seq,
+                    amp_start,
+                    amp_end,
+                    ext_qual=EXT_QUAL
                 )
                 # Exporting the read as a forward or reverse read
                 header_suffix = (
