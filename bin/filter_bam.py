@@ -101,7 +101,7 @@ def trim_extend_read(
         prefix_extension_len = 0 # Length of prefix extension
     else:
         read_segment_start = 0
-        prefix_extension_len = amp_start - ref_start
+        prefix_extension_len = ref_start - amp_start
     amp_segment_start = prefix_extension_len # Start coord. of kept segment on amplicon
     # Extracting the end coordinate of the mapped segment that overlaps the amplicon
     if ref_end > amp_end:
