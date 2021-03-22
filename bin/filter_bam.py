@@ -150,21 +150,23 @@ if __name__ == "__main__":
 
     # Name of the input BAM file
     _, bam_file_name =  os.path.split(args.bam_file)
-    # Path to sorted input BAM file
-    sorted_bam_file = args.bam_file.replace('.bam', '-sorted.bam')
-    # Path to index of sorted BAM file
-    index_sorted_bam_file = f"{sorted_bam_file}.bai"
-    # Sorting and indexing the input BAM file if not already done
-    if not os.path.isfile(sorted_bam_file):
-        print('Sorting input BAM file')
-        subprocess.call(
-            ['samtools', 'sort', '-o', sorted_bam_file, args.bam_file]
-        )
-    if not os.path.isfile(index_sorted_bam_file):
-        print('Indexing sorted input BAM file')
-        subprocess.call(['samtools', 'index', sorted_bam_file])
+    
+    # # Path to sorted input BAM file
+    # sorted_bam_file = args.bam_file.replace('.bam', '-sorted.bam')
+    # # Path to index of sorted BAM file
+    # index_sorted_bam_file = f"{sorted_bam_file}.bai"
+    # # Sorting and indexing the input BAM file if not already done
+    # if not os.path.isfile(sorted_bam_file):
+    #     print('Sorting input BAM file')
+    #     subprocess.call(
+    #         ['samtools', 'sort', '-o', sorted_bam_file, args.bam_file]
+    #     )
+    # if not os.path.isfile(index_sorted_bam_file):
+    #     print('Indexing sorted input BAM file')
+    #     subprocess.call(['samtools', 'index', sorted_bam_file])
+
     # Reading the sorted input BAM file
-    pysam_in_bam_file = pysam.AlignmentFile(sorted_bam_file, 'rb')
+    pysam_in_bam_file = pysam.AlignmentFile(args.bam_file, 'rb')
 
     # Output FASTQ files
     out_fq_file_prefix = bam_file_name.replace('.bam', '_L001_')
