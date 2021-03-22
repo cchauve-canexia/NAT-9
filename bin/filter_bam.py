@@ -210,8 +210,8 @@ if __name__ == "__main__":
         amp_chr = amplicon['Chr'].replace('chr', args.chr_prefix)
         amp_seq = amplicon['Amplicon']
         # Amplicon coordinates (0-base)
-        amp_start, amp_end = amplicon.get_start() - 1, amplicon.get_end() - 1
-        amp_seq = amplicon.get_seq()
+        amp_start, amp_end = amplicon['Start'] - 1, amplicon['End'] - 1
+        amp_seq = amplicon['Amplicon']
         # Counting the number of mappings overlaping the amplicon on at least one base
         # stop receives +1 as in pysam regions specified by contig, start, stop are
         # 0-base half-open intervals as in python slices
