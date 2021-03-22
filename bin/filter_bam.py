@@ -293,6 +293,7 @@ if __name__ == "__main__":
     out_fq_fwd_file.write(out_fwd_str[:-1]) # [:-1] to exclude the last \n
     out_fq_rev_file.write(out_rev_str[:-1])
     # Closing opened files
+    pysam_out_bam_file.close()
     out_fq_fwd_file.close()
     out_fq_rev_file.close()
     log_file.close()
