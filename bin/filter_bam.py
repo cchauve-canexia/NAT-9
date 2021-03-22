@@ -216,14 +216,14 @@ if __name__ == "__main__":
         # stop receives +1 as in pysam regions specified by contig, start, stop are
         # 0-base half-open intervals as in python slices
         # https://pysam.readthedocs.io/en/latest/api.html#pysam.HTSFile.parse_region
-        amp_read_count = pysam_raw_bam_file.count(
+        amp_read_count = pysam_in_bam_file.count(
             contig=amp_chr, start=amp_start, stop=amp_end + 1
         )
         if amp_read_count > 0:
             log_file.write(f"STAT:NB_READS\t{amp_id}:{amp_read_count}\n")
         # Loop over all mappings overlaping the current amplicon
         # See comment above for increasing amp_end by 1
-        for read in pysam_raw_bam_file.fetch(
+        for read in pysam_in_bam_file.fetch(
             contig=amp_chr, start=amp_start, stop=amp_end + 1
         ):
             # Mapping features
