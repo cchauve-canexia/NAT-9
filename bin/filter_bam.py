@@ -150,7 +150,7 @@ if __name__ == "__main__":
 
     # Name of the input BAM file
     _, bam_file_name =  os.path.split(args.bam_file)
-    
+
     # # Path to sorted input BAM file
     # sorted_bam_file = args.bam_file.replace('.bam', '-sorted.bam')
     # # Path to index of sorted BAM file
@@ -289,6 +289,12 @@ if __name__ == "__main__":
         log_file.write(f"STAT:NB_FWD_BASES\t{amp_id}:{log_nb_fwd_bases}\n")
         log_file.write(f"STAT:NB_REV_READS\t{amp_id}:{log_nb_rev_reads}\n")
         log_file.write(f"STAT:NB_REV_BASES\t{amp_id}:{log_nb_rev_bases}\n")
+    # Sorting/indexing the output BAM file
+    out_sorted_bam_file_name = out_bam_file_name.replace('.bam', '-sorted.bam')
+    subprocess.call(
+        ['samtools', 'sort', '-o', out_sorted_bam_file_name, out_bam_file_name]
+    )
+    subprocess.call(['samtools', 'index', out_sorted_bam_file_name])
     # Writing two annotated FASTQ files, for forward and reverse reads
     out_fq_fwd_file.write(out_fwd_str[:-1]) # [:-1] to exclude the last \n
     out_fq_rev_file.write(out_rev_str[:-1])
