@@ -67,8 +67,38 @@ def rev_comp(seq):
     """
     return ''.join(map(lambda x: REVERSE_COMPLEMENT[x], seq))[::-1]
 
+def expand_cigar(read):
+    """
+    Expand a cigar string into individual operations
+    :param: read (pysam.AlignedSegment)
+    :return: list(int)
+    """
+    cigar_list = []
+    for (op, len) in read.cigartuples:
+        cigar_list += [op for i in range(len)]
+    return cigar_list
+
+def ref_len_to_query_len(cigar_list, target_len):
+    """
+    :param: cigar_list (list(int)): expanded CIGAR string
+    :param: target_len (int): number of bases in aligned reference
+    :return: int: number of bases in query that are covered by the aligned
+    reference
+    """
+    query_len, ref_len = 0, 0
+    for op in cigar_list:
+        if op in [0, 8]: # Match/mismatch
+            query_len += 1
+            ref_len += 1
+        elif op == 1: # Insertion
+            query_len += 1
+        elif op == 2: # Deletion
+            ref_len += 1
+        if ref_len == target_len:
+            return query_len
+
 def trim_extend_read(
-    ref_start, ref_end, read_seq, read_qual, amp_seq, amp_start, amp_end, ext_qual=EXT_QUAL
+    ref_start, ref_end, read_seq, read_qual, amp_seq, amp_start, amp_end, exp_cigar, ext_qual=EXT_QUAL
 ):
     """
     Given a mapping of a read over an amplicon, trim or extend the mapping to
@@ -88,6 +118,7 @@ def trim_extend_read(
     :param: read_seq (str): sequence of the read that is aligned
     :param: amp_seq (str): amplicon sequence
     :param: amp_start, amp_end (int): chromosomal coordinates of the amplicon (0-base)
+    :param: exp_cigar (list(int)): expanded CIGAR string
     :param: ext_qual (int): if >0 extend in case the read does not cover the
     whole amplicon and assigns ext_qual as Phred quality to the extensions
     :return: (str, list(int), int, int):
@@ -97,7 +128,8 @@ def trim_extend_read(
     """
     # Extracting the start coordinates of the mapped segment that overlaps the amplicon
     if ref_start < amp_start:
-        read_segment_start = amp_start - ref_start # Start of mapping segment that will be kept
+        # Start of mapping segment that will be kept
+        read_segment_start = ref_len_to_query_len(exp_cigar, amp_start - ref_start + 1) - 1
         prefix_extension_len = 0 # Length of prefix extension
     else:
         read_segment_start = 0
@@ -105,10 +137,10 @@ def trim_extend_read(
     amp_segment_start = prefix_extension_len # Start coord. of kept segment on amplicon
     # Extracting the end coordinate of the mapped segment that overlaps the amplicon
     if ref_end > amp_end:
-        read_segment_end = amp_end - ref_start
+        read_segment_end = ref_len_to_query_len(exp_cigar, amp_end - ref_start + 1) - 1
         suffix_extension_len = 0
     else:
-        read_segment_end = ref_end - ref_start
+        read_segment_end = ref_len_to_query_len(exp_cigar, ref_end - ref_start + 1) - 1
         suffix_extension_len = amp_end - ref_end
     amp_segment_end = amp_end - amp_start - suffix_extension_len
     # Trimming/extending the mapped segment
@@ -167,7 +199,6 @@ if __name__ == "__main__":
 
     # Reading the sorted input BAM file
     pysam_in_bam_file = pysam.AlignmentFile(args.bam_file, 'rb')
-
     # Output FASTQ files
     out_fq_file_prefix = bam_file_name.replace('.bam', '_L001_')
     out_fq_fwd_file_name = os.path.join(
@@ -248,6 +279,7 @@ if __name__ == "__main__":
                 # Mapping features
                 query_seq = read.query_alignment_sequence
                 query_qual = list(read.query_alignment_qualities)
+                exp_cigar = expand_cigar(read)
                 # Computing the overlap of the mapping with the amplicon,
                 # trimming it if needed and extensing it if args.ext_qual > 0
                 # Computing the overlap of the mapping with the amplicon,
@@ -262,6 +294,7 @@ if __name__ == "__main__":
                     amp_seq,
                     amp_start,
                     amp_end,
+                    exp_cigar,
                     ext_qual=EXT_QUAL
                 )
                 # Exporting the read as a forward or reverse read
