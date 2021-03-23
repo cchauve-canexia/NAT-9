@@ -87,7 +87,7 @@ def ref_len_to_query_len(cigar_list, target_len):
     """
     query_len, ref_len = 0, 0
     for op in cigar_list:
-        if op in [0, 8]: # Match/mismatch
+        if op in [0, 7, 8]: # Match/mismatch
             query_len += 1
             ref_len += 1
         elif op == 1: # Insertion
